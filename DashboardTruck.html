@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Vehicle Live View</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+
+<style>
+  body {
+    margin: 0;
+    background: black;
+    height: 100vh;
+    display: grid;
+    grid-template-rows: 33vh 67vh;
+    font-family: Arial, sans-serif;
+    overflow: hidden;
+  }
+
+  /* ---------- TOP INFO AREA ---------- */
+  #top {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .card {
+    background: #111;
+    border-radius: 10px;
+    padding: 12px;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    text-align: center;
+  }
+
+  .alert {
+    font-size: 18px;
+    background: #113311;
+    color: #ccffcc;
+  }
+
+  /* ---------- BOTTOM GRID ---------- */
+  #bottom {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+    gap: 4px;
+  }
+
+  .tile {
+    position: relative;
+    background: black;
+    overflow: hidden;
+  }
+
+  video, img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .label {
+    position: absolute;
+    bottom: 6px;
+    left: 6px;
+    background: rgba(0,0,0,0.6);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 14px;
+  }
+</style>
+</head>
+
+<body>
+
+<!-- ================= TOP THIRD ================= -->
+<div id="top">
+  <div class="card" id="datetime">--:--</div>
+  <div class="card">Allegany</div>
+  <div class="card" id="temp">--°F</div>
+  <div class="card alert" id="alert">Checking alerts…</div>
+</div>
+
+<!-- ================= BOTTOM TWO THIRDS ================= -->
+<div id="bottom">
+
+  <!-- CAMERA 1 -->
+  <div class="tile">
+    <video muted autoplay playsinline></video>
+    <div class="label">Olean Live</div>
+  </div>
+
+  <!-- CAMERA 2 -->
+  <div class="tile">
+    <video muted autoplay playsinline></video>
+    <div class="label">Cuba Live</div>
+  </div>
+
+  <!-- WEATHER GIF 1 -->
+  <div class="tile">
+    <img src="https://radar.weather.gov/ridge/standard/KBUF_loop.gif" />
+    <div class="label">Radar</div>
+  </div>
+
+  <!-- WEATHER GIF 2 -->
+  <div class="tile">
+    <img src="https://cdn.star.nesdis.noaa.gov/GOES19/ABI/SECTOR/ne/GEOCOLOR/GOES19-NE-GEOCOLOR-600x600.gif" />
+    <div class="label">Satellite</div>
+  </div>
+
+</div>
+
+<script>
+  /* ---------- TIME + DATE ---------- */
+  function updateDateTime() {
+    const now = new Date();
+    const time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const date = now.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+    document.getElementById("datetime").innerHTML = `${time}<br>${date}`;
+  }
+  updateDateTime();
+  setInterval(updateDateTime, 1000);
+
+  /* ---------- TEMPERATURE (Open-Meteo) ---------- */
+  function updateTemp() {
+    const lat = 42.0776;
+    const lon = -78.4297;
+
+    fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&temperature_unit=fahrenheit`)
+      .then(r => r.json())
+      .then(d => {
+        document.getElementById("temp").textContent =
+          Math.round(d.current_weather.temperature) + "°F";
+      })
+      .catch(() => {
+        document.getElementById("temp").textContent = "--°F";
+      });
+  }
+  updateTemp();
+  setInterval(updateTemp, 10 * 60 * 1000);
+
+  /* ---------- WEATHER ALERTS (NWS) ---------- */
+  function updateAlerts() {
+    fetch("https://api.weather.gov/alerts/active?zone=NYZ019")
+      .then(r => r.json())
+      .then(d => {
+        const el = document.getElementById("alert");
+        if (d.features.length === 0) {
+          el.textContent = "No active alerts";
+          el.style.background = "#113311";
+          el.style.color = "#ccffcc";
+        } else {
+          el.textContent = d.features[0].properties.headline;
+          el.style.background = "#550000";
+          el.style.color = "#ffdddd";
+        }
+      })
+      .catch(() => {
+        document.getElementById("alert").textContent = "Alert data unavailable";
+      });
+  }
+  updateAlerts();
+  setInterval(updateAlerts, 5 * 60 * 1000);
+
+  /* ---------- HLS CAMS ---------- */
+  const camUrls = [
+    "https://webcam.eadeswallpaper.com/south.m3u8",
+    "https://s9.nysdot.skyvdn.com:443/rtplive/R6_034/playlist.m3u8"
+  ];
+
+  document.querySelectorAll("video").forEach((video, i) => {
+    if (Hls.isSupported()) {
+      const hls = new Hls({ liveSyncDurationCount: 2 });
+      hls.loadSource(camUrls[i]);
+      hls.attachMedia(video);
+    } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+      video.src = camUrls[i];
+    }
+  });
+
+  /* ---------- FULL PAGE SAFETY REFRESH ---------- */
+  setInterval(() => location.reload(), 2 * 60 * 1000);
+</script>
+
+</body>
+</html>
