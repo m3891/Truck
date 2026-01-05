@@ -1,191 +1,186 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<title>Vehicle Live View</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1080, height=1920, initial-scale=1.0">
+<title>Vehicle Dashboard – Allegany</title>
 
 <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 
 <style>
   body {
     margin: 0;
-    background: black;
-    height: 100vh;
-    display: grid;
-    grid-template-rows: 33vh 67vh;
-    font-family: Arial, sans-serif;
+    background: #0b0b0b;
+    color: #ffffff;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
     overflow: hidden;
   }
 
-  /* ---------- TOP INFO AREA ---------- */
+  /* ---------- TOP INFO ---------- */
   #top {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 8px;
-    padding: 10px;
-  }
-
-  .card {
-    background: #111;
-    border-radius: 10px;
-    padding: 12px;
-    color: white;
+    height: 16.6vh;
     display: flex;
-    align-items: center;
+    flex-direction: column;
     justify-content: center;
-    font-size: 24px;
+    align-items: center;
+    gap: 6px;
     text-align: center;
   }
 
-  .alert {
-    font-size: 18px;
-    background: #113311;
-    color: #ccffcc;
+  #city {
+    font-size: 52px;
+    font-weight: 600;
   }
 
-  /* ---------- BOTTOM GRID ---------- */
-  #bottom {
+  #datetime {
+    font-size: 36px;
+    opacity: 0.85;
+  }
+
+  #temp {
+    font-size: 44px;
+    font-weight: 500;
+  }
+
+  /* ---------- MAIN AREA ---------- */
+  #main {
+    height: 83.4vh;
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    grid-template-rows: repeat(2, 1fr);
-    gap: 4px;
+    grid-template-rows: 1fr 1fr;
+    gap: 10px;
+    padding: 10px;
   }
 
-  .tile {
-    position: relative;
-    background: black;
-    overflow: hidden;
+  /* ---------- TOP VISUAL ROW ---------- */
+  #visuals {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
   }
 
   video, img {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    border-radius: 12px;
+    background: black;
   }
 
-  .label {
-    position: absolute;
-    bottom: 6px;
-    left: 6px;
-    background: rgba(0,0,0,0.6);
+  /* ---------- BUTTON PANEL ---------- */
+  #buttons {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    grid-auto-rows: 1fr;
+    gap: 14px;
+  }
+
+  button {
+    font-size: 34px;
+    border-radius: 16px;
+    border: none;
+    background: #1c1c1c;
     color: white;
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 14px;
+    font-weight: 600;
+    touch-action: manipulation;
+  }
+
+  button:active {
+    background: #333;
   }
 </style>
 </head>
 
 <body>
 
-<!-- ================= TOP THIRD ================= -->
+<!-- ---------- TOP INFO ---------- -->
 <div id="top">
-  <div class="card" id="datetime">--:--</div>
-  <div class="card">Allegany, NY</div>
-  <div class="card" id="temp">--°F</div>
-  <div class="card alert" id="alert">Checking alerts…</div>
+  <div id="city">Allegany</div>
+  <div id="datetime">Loading…</div>
+  <div id="temp">--°F</div>
 </div>
 
-<!-- ================= BOTTOM TWO THIRDS ================= -->
-<div id="bottom">
+<!-- ---------- MAIN ---------- -->
+<div id="main">
 
-  <!-- CAMERA 1 -->
-  <div class="tile">
-    <video muted autoplay playsinline></video>
-    <div class="label">Olean Live</div>
+  <!-- VISUALS -->
+  <div id="visuals">
+    <!-- HLS VIDEO -->
+    <video id="cam1" muted autoplay playsinline></video>
+
+    <!-- GIF LOOP -->
+    <img src="https://radar.weather.gov/ridge/standard/KBUF_loop.gif">
   </div>
 
-  <!-- CAMERA 2 -->
-  <div class="tile">
-    <video muted autoplay playsinline></video>
-    <div class="label">Cuba Live</div>
-  </div>
-
-  <!-- WEATHER GIF 1 -->
-  <div class="tile">
-    <img src="https://radar.weather.gov/ridge/standard/KBUF_loop.gif" />
-    <div class="label">Radar</div>
-  </div>
-
-  <!-- WEATHER GIF 2 -->
-  <div class="tile">
-    <img src="https://cdn.star.nesdis.noaa.gov/GOES19/ABI/SECTOR/ne/GEOCOLOR/GOES19-NE-GEOCOLOR-600x600.gif" />
-    <div class="label">Satellite</div>
+  <!-- AUDIO SEEKBAR BUTTONS -->
+  <div id="buttons">
+    <button onclick="playClip('HaveACry.mp3')">Have a Cry</button>
+    <button onclick="playClip('Liar.mp3')">Liar</button>
+    <button onclick="playClip('Laugh.mp3')">Uncle Buck Laugh</button>
+    <button onclick="playClip('Trash.mp3')">I'm Trash</button>
   </div>
 
 </div>
+
+<audio id="player"></audio>
 
 <script>
-  /* ---------- TIME + DATE ---------- */
-  function updateDateTime() {
-    const now = new Date();
-    const time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    const date = now.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
-    document.getElementById("datetime").innerHTML = `${time}<br>${date}`;
-  }
-  updateDateTime();
-  setInterval(updateDateTime, 1000);
+/* ---------- DATE & TIME ---------- */
+function updateDateTime() {
+  const now = new Date();
+  const options = {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit'
+  };
+  document.getElementById('datetime').textContent =
+    now.toLocaleString('en-US', options);
+}
+updateDateTime();
+setInterval(updateDateTime, 1000);
 
-  /* ---------- TEMPERATURE (Open-Meteo) ---------- */
-  function updateTemp() {
-    const lat = 42.0776;
-    const lon = -78.4297;
+/* ---------- WEATHER (OPEN-METEO) ---------- */
+function updateWeather() {
+  fetch("https://api.open-meteo.com/v1/forecast?latitude=42.091&longitude=-78.494&current=temperature_2m&temperature_unit=fahrenheit")
+    .then(r => r.json())
+    .then(d => {
+      document.getElementById('temp').textContent =
+        `${Math.round(d.current.temperature_2m)}°F`;
+    });
+}
+updateWeather();
+setInterval(updateWeather, 5 * 60 * 1000);
 
-    fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&temperature_unit=fahrenheit`)
-      .then(r => r.json())
-      .then(d => {
-        document.getElementById("temp").textContent =
-          Math.round(d.current_weather.temperature) + "°F";
-      })
-      .catch(() => {
-        document.getElementById("temp").textContent = "--°F";
-      });
-  }
-  updateTemp();
-  setInterval(updateTemp, 10 * 60 * 1000);
+/* ---------- HLS VIDEO ---------- */
+const video = document.getElementById("cam1");
+const camUrl = "https://webcam.eadeswallpaper.com/south.m3u8";
 
-  /* ---------- WEATHER ALERTS (NWS) ---------- */
-  function updateAlerts() {
-    fetch("https://api.weather.gov/alerts/active?zone=NYZ019")
-      .then(r => r.json())
-      .then(d => {
-        const el = document.getElementById("alert");
-        if (d.features.length === 0) {
-          el.textContent = "No active alerts";
-          el.style.background = "#113311";
-          el.style.color = "#ccffcc";
-        } else {
-          el.textContent = d.features[0].properties.event;
-          el.style.background = "#550000";
-          el.style.color = "#ffdddd";
-        }
-      })
-      .catch(() => {
-        document.getElementById("alert").textContent = "Alert data unavailable";
-      });
-  }
-  updateAlerts();
-  setInterval(updateAlerts, 5 * 60 * 1000);
-
-  /* ---------- HLS CAMS ---------- */
-  const camUrls = [
-    "https://webcam.eadeswallpaper.com/south.m3u8",
-    "https://s9.nysdot.skyvdn.com:443/rtplive/R6_034/playlist.m3u8"
-  ];
-
-  document.querySelectorAll("video").forEach((video, i) => {
-    if (Hls.isSupported()) {
-      const hls = new Hls({ liveSyncDurationCount: 2 });
-      hls.loadSource(camUrls[i]);
-      hls.attachMedia(video);
-    } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
-      video.src = camUrls[i];
-    }
+if (Hls.isSupported()) {
+  const hls = new Hls({
+    liveSyncDurationCount: 2,
+    maxLiveSyncPlaybackRate: 1.0
   });
+  hls.loadSource(camUrl);
+  hls.attachMedia(video);
+} else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+  video.src = camUrl;
+}
 
-  /* ---------- FULL PAGE SAFETY REFRESH ---------- */
-  setInterval(() => location.reload(), 2 * 60 * 1000);
+/* ---------- AUDIO BUTTONS ---------- */
+const player = document.getElementById("player");
+
+function playClip(file) {
+  player.pause();
+  player.currentTime = 0;
+  player.src = file;
+  player.play();
+}
+
+/* ---------- SAFETY REFRESH ---------- */
+setInterval(() => {
+  location.reload(true);
+}, 5 * 60 * 1000);
 </script>
 
 </body>
